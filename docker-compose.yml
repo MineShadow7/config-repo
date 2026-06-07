@@ -26,7 +26,14 @@ services:
       - discovery-service
     environment:
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
-      JAVA_OPTS: "-Xmx512m -Xms256m"
+      JAVA_OPTS: "-Xmx512m -Xms256m -Dhttp.nonProxyHosts=localhost|127.0.0.1|discovery-service|config-service|gateway-api|user-service|notification-service|kafka"
+      SPRING_CLOUD_CONFIG_SERVER_GIT_URI: https://github.com/MineShadow7/config-repo.git
+      SPRING_CLOUD_CONFIG_SERVER_GIT_CLONE_ON_START: "true"
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8888/actuator/health" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
     networks:
       - microservices-network
 
@@ -135,11 +142,18 @@ services:
     ports:
       - "8082:8082"
     depends_on:
-      - discovery-service
-      - config-service
-      - kafka
-      - notification-db
+      discovery-service:
+        condition: service_started
+      config-service:
+        condition: service_healthy
+      kafka:
+        condition: service_started
+      notification-db:
+        condition: service_started
     environment:
+      DATASOURCE_USERNAME: admin
+      DATASOURCE_PASSWORD: password
+      SPRING_PREFER_IP_ADDRESS: true
       EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
       SPRING_CONFIG_IMPORT: optional:configserver:http://config-service:8888
       SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
