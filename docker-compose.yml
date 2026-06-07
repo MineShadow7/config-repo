@@ -1,0 +1,158 @@
+version: '3.8'
+
+services:
+  # Eureka Server (Service Discovery)
+  discovery-service:
+    build:
+      context: ./discovery-service
+      dockerfile: Dockerfile
+    container_name: discovery-service
+    ports:
+      - "8761:8761"
+    environment:
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    networks:
+      - microservices-network
+
+  # Config Server
+  config-service:
+    build:
+      context: ./config-service
+      dockerfile: Dockerfile
+    container_name: config-service
+    ports:
+      - "8888:8888"
+    depends_on:
+      - discovery-service
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    networks:
+      - microservices-network
+
+  # API Gateway
+  gateway-api:
+    build:
+      context: ./gateway-api
+      dockerfile: Dockerfile
+    container_name: gateway-api
+    ports:
+      - "8080:8080"
+    depends_on:
+      - discovery-service
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    networks:
+      - microservices-network
+
+  # Kafka
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: kafka
+    depends_on:
+      - zookeeper
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_ZOOKEEPER_CONNECT: zookeeper:2181
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: 'true'
+    networks:
+      - microservices-network
+
+  # Zookeeper (for Kafka)
+  zookeeper:
+    image: confluentinc/cp-zookeeper:7.5.0
+    container_name: zookeeper
+    ports:
+      - "2181:2181"
+    environment:
+      ZOOKEEPER_CLIENT_PORT: 2181
+    networks:
+      - microservices-network
+
+  # PostgreSQL for User Service
+  user-service-db:
+    image: postgres:15-alpine
+    container_name: user-service-db
+    environment:
+      POSTGRES_DB: user_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - user-service-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  # PostgreSQL for Notification Service
+  notification-db:
+    image: postgres:15-alpine
+    container_name: notification-db
+    environment:
+      POSTGRES_DB: notification_db
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5433:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    networks:
+      - microservices-network
+
+  # User Service
+  user-service:
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    container_name: user-service
+    ports:
+      - "8081:8081"
+    depends_on:
+      - discovery-service
+      - config-service
+      - kafka
+      - user-service-db
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-service:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://user-service-db:5432/user_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    networks:
+      - microservices-network
+
+  # Notification Service
+  notification-service:
+    build:
+      context: ./notification-service
+      dockerfile: Dockerfile
+    container_name: notification-service
+    ports:
+      - "8082:8082"
+    depends_on:
+      - discovery-service
+      - config-service
+      - kafka
+      - notification-db
+    environment:
+      EUREKA_CLIENT_SERVICEURL_DEFAULTZONE: http://discovery-service:8761/eureka/
+      SPRING_CONFIG_IMPORT: optional:configserver:http://config-service:8888
+      SPRING_DATASOURCE_URL: jdbc:postgresql://notification-db:5432/notification_db
+      SPRING_KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      JAVA_OPTS: "-Xmx512m -Xms256m"
+    networks:
+      - microservices-network
+
+networks:
+  microservices-network:
+    driver: bridge
+
+volumes:
+  user-service-db-data:
+  notification-db-data:
+
