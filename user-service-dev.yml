@@ -1,0 +1,65 @@
+spring:
+  application:
+    name: user-service
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5432/user_db
+    username: admin
+    password: password
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    producer:
+      acks: all
+      retries: 3
+      key-serializer: org.apache.kafka.common.serialization.StringSerializer
+      value-serializer: org.springframework.kafka.support.serializer.JacksonJsonSerializer
+
+server:
+  port: 8081
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    org.hwmoodle: DEBUG
+    org.springframework.web: DEBUG
+    org.springframework.data: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+
+notification-service:
+  url: http://localhost:8082
+  api-key: dev-key
+  timeout: 5000
+  retry-count: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,env,configprops
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+
+app:
+  name: User Service
+  version: 1.0
+  env: development
+

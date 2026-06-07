@@ -1,0 +1,88 @@
+spring:
+  application:
+    name: notification-service
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:postgresql://localhost:5433/notification_db
+    username: admin
+    password: password
+    driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 5
+      minimum-idle: 2
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        format_sql: true
+        use_sql_comments: true
+  kafka:
+    bootstrap-servers: localhost:9092
+    consumer:
+      group-id: notification-service-group
+      auto-offset-reset: earliest
+      key-deserializer: org.apache.kafka.common.serialization.StringDeserializer
+      value-deserializer: org.springframework.kafka.support.serializer.JsonDeserializer
+      properties:
+        spring.json.value.default.type: org.hwmoodle.core.dto.UserNotificationEvent
+        spring.json.trusted.packages: org.hwmoodle.core.dto
+  mail:
+    host: ${SPRING_MAIL_HOST:smtp.ethereal.email}
+    port: ${SPRING_MAIL_PORT:587}
+    username: ${SPRING_MAIL_USERNAME:}
+    password: ${SPRING_MAIL_PASSWORD:}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+          starttls:
+            required: false
+
+server:
+  port: 8082
+  servlet:
+    context-path: /
+
+logging:
+  level:
+    root: INFO
+    org.hwmoodle: DEBUG
+    org.springframework.web: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss} - %logger{36} - %msg%n"
+
+app:
+  notification:
+    sender-email: ${APP_NOTIFICATION_SENDER_EMAIL:noreply@example.com}
+    topic: user-events
+    enabled: true
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,circuitbreakers,env,configprops
+  endpoint:
+    health:
+      show-details: always
+  health:
+    circuitbreakers:
+      enabled: true
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      emailServiceCB:
+        register-health-indicator: true
+        sliding-window-size: 10
+        failure-rate-threshold: 50
+  timelimiter:
+    instances:
+      emailServiceCB:
+        timeout-duration: 5000
+

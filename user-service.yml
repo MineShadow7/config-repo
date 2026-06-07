@@ -1,0 +1,17 @@
+spring:
+  application:
+    name: user-service
+  datasource:
+    url: jdbc:postgresql://user-service-db:5432/user_db
+    username: admin
+    password: password
+  mail:
+    host: smtp.example.com
+    port: 587
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+notification-service:
+  url: http://notification-service:8082
+  api-key: ${NOTIFICATION_API_KEY}
+
